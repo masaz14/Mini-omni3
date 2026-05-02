@@ -1,0 +1,23 @@
+# Python >= 3.10
+# Install PyTorch with the CUDA build that matches your driver from https://pytorch.org/ if needed.
+lightning>=2.5,<2.6
+numpy<2
+torch>=2.5,<2.7
+tokenizers>=0.15.2
+transformers==5.6.0
+huggingface-hub>=0.23.5
+PyYAML>=6.0
+typing-extensions>=4.9
+packaging>=23.0
+lightning-utilities>=0.11
+openai-whisper
+librosa>=0.10
+soundfile>=0.12
+scipy>=1.11
+
+# --- Optional (not required for basic decoding) ---
+# Semantic similarity reranking in offline_paskal.py stats:
+# FlagEmbedding>=1.2
+#
+# If the model uses FlashAttention in forward:
+# flash-attn  # install per https://github.com/Dao-AILab/flash-attention
