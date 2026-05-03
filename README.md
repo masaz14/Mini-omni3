@@ -137,19 +137,6 @@ To match published numbers, fix **dataset revision**, **exact checkpoint file(s)
 
 7. **Optional — semantic metrics**: install `FlagEmbedding`, pass `--semantic-standard-jsonl` and `--semantic-model-dir` (see table above).
 
-8. **Optional — publish to GitHub** (first time from this folder):
-
-   ```bash
-   git init
-   git branch -M main
-   git add .
-   git commit -m "Initial commit"
-   git remote add origin git@github.com:YOUR_USER/YOUR_REPO.git
-   ssh -T git@github.com   # should say “successfully authenticated”
-   git push -u origin main
-   ```
-
-   Use HTTPS + Personal Access Token instead of SSH if you prefer; see GitHub docs for `credential.helper`.
 
 ## License
 
