@@ -1,26 +1,15 @@
-# Copyright Lightning AI. Licensed under the Apache License 2.0, see LICENSE file.
-
-"""
-Offline evaluation for proactive audio reply (PASKAL) using LitGPT + Qwen2.5-Omni audio tower.
-
-Paths are configured via CLI or environment variables (see ``parse_args`` / ``--help``).
-"""
-
 from __future__ import annotations
-
 import argparse
 import json
-import multiprocessing as mp
 import os
 import random
 import re
 import sys
 from collections import defaultdict
-from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
 from io import StringIO
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 
 import lightning as L
 import numpy as np
@@ -54,10 +43,15 @@ ENGLISH = VOCAB_SHIFT + 11
 SYSTEM = 151644
 
 DEFAULT_SYSTEM_PROMPT = (
-    "You are a helpful assistant. When there is no user text, if the audio contains a question, please answer it. If it is a sound effect, determine based on the sound whether help is needed. If the audio indicates physiological danger or environmental safety risks, provide appropriate assistance.If it reflects negative emotions, offer mental comfort.If it suggests equipment malfunction, provide warnings or safety guidance.If none of the above apply,just respond with  If the audio indicates physiological danger or environmental safety risks, provide appropriate assistance.If it reflects negative emotions, offer mental comfort.If it suggests equipment malfunction, provide warnings or safety guidance.If none of the above apply,just respond with "".",
+    'You are a helpful assistant. When there is no user text, if the audio contains a question, please answer it. '
+    'If it is a sound effect, determine based on the sound whether help is needed. '
+    'If the audio indicates physiological danger or environmental safety risks, provide appropriate assistance.'
+    'If it reflects negative emotions, offer mental comfort.'
+    'If it suggests equipment malfunction, provide warnings or safety guidance.'
+    'If none of the above apply,just respond with "".'
 )
 
-SUMMARY_JSON_NAME = "proactive_test_results_all_checkpoints_summary.json"
+SUMMARY_JSON_NAME = "proactive_test_results_summary.json"
 
 
 @dataclass
@@ -66,7 +60,7 @@ class OfflinePaskalConfig:
 
     tokenizer_dir: Path
     system_prompt: str
-    checkpoint_paths: Tuple[Path, ...]
+    checkpoint_path: Path
     audio_tower_config: Path
     audio_tower_weights: Path
     dataset_jsonl: Path
@@ -74,7 +68,6 @@ class OfflinePaskalConfig:
     semantic_standard_file: Optional[Path] = None
     semantic_model_path: Optional[Path] = None
     semantic_threshold: float = 0.5
-    max_jobs_per_gpu: int = 2
 
 
 def _env_str(key: str) -> Optional[str]:
@@ -84,7 +77,7 @@ def _env_str(key: str) -> Optional[str]:
 
 def parse_args(argv: Optional[list[str]] = None) -> OfflinePaskalConfig:
     p = argparse.ArgumentParser(
-        description="Offline proactive reply benchmark with PASKAL (LitGPT + audio encoder)."
+        description="Offline proactive reply benchmark with PASKAL (LitGPT + audio encoder). (single checkpoint)"
     )
     p.add_argument(
         "--tokenizer-dir",
@@ -100,14 +93,10 @@ def parse_args(argv: Optional[list[str]] = None) -> OfflinePaskalConfig:
     )
     p.add_argument(
         "--checkpoint",
-        action="append",
         type=Path,
-        dest="checkpoints",
+        default=None,
         metavar="PATH",
-        help=(
-            "Path to a LitGPT checkpoint file (e.g. lit_model.pth or *_statedict.pt). "
-            "Repeat flag for multiple. Env: PASKAL_CHECKPOINTS (comma-separated paths)."
-        ),
+        help="Path to a single LitGPT checkpoint file. Env: PASKAL_CHECKPOINT",
     )
     p.add_argument(
         "--audio-tower-config",
@@ -131,7 +120,7 @@ def parse_args(argv: Optional[list[str]] = None) -> OfflinePaskalConfig:
         "--output-dir",
         type=Path,
         default=None,
-        help="Results root (per-checkpoint subfolders created here). Env: PASKAL_OUTPUT_DIR",
+        help="Results root (per-checkpoint subfolder created here). Env: PASKAL_OUTPUT_DIR",
     )
     p.add_argument(
         "--semantic-standard-jsonl",
@@ -151,12 +140,6 @@ def parse_args(argv: Optional[list[str]] = None) -> OfflinePaskalConfig:
         default=float(_env_str("PASKAL_SEMANTIC_THRESHOLD") or 0.5),
         help="Similarity threshold for counting RESPOND as correct after reranking. Env: PASKAL_SEMANTIC_THRESHOLD",
     )
-    p.add_argument(
-        "--max-jobs-per-gpu",
-        type=int,
-        default=int(_env_str("PASKAL_MAX_JOBS_PER_GPU") or 2),
-        help="Worker tasks per visible GPU when running multiple checkpoints. Env: PASKAL_MAX_JOBS_PER_GPU",
-    )
 
     args = p.parse_args(argv)
 
@@ -168,8 +151,7 @@ def parse_args(argv: Optional[list[str]] = None) -> OfflinePaskalConfig:
                 raw = Path(env_val)
         if raw is None:
             p.error(f"{human_name} is required (CLI or {env_key}).")
-        out = raw.expanduser().resolve()
-        return out
+        return raw.expanduser().resolve()
 
     tokenizer_dir = need(args.tokenizer_dir, "PASKAL_TOKENIZER_DIR", "--tokenizer-dir")
     audio_tower_config = need(args.audio_tower_config, "PASKAL_AUDIO_TOWER_CONFIG", "--audio-tower-config")
@@ -177,27 +159,14 @@ def parse_args(argv: Optional[list[str]] = None) -> OfflinePaskalConfig:
     dataset_jsonl = need(args.dataset_jsonl, "PASKAL_DATASET_JSONL", "--dataset-jsonl")
     output_dir = need(args.output_dir, "PASKAL_OUTPUT_DIR", "--output-dir")
 
-    ck_raw: list[Path] = []
-    if args.checkpoints:
-        ck_raw.extend(args.checkpoints)
-    else:
-        env_ck = _env_str("PASKAL_CHECKPOINTS")
-        if env_ck:
-            for part in env_ck.replace(";", ",").split(","):
-                s = part.strip()
-                if s:
-                    ck_raw.append(Path(s))
-    if not ck_raw:
-        p.error(
-            "At least one checkpoint is required: repeat --checkpoint PATH "
-            "or set PASKAL_CHECKPOINTS (comma-separated paths)."
-        )
-    checkpoint_paths_resolved: list[Path] = []
-    for cp in ck_raw:
-        rp = cp.expanduser().resolve()
-        if not rp.is_file():
-            p.error(f"Checkpoint is not a file: {rp}")
-        checkpoint_paths_resolved.append(rp)
+    ckpt_raw = args.checkpoint
+    if ckpt_raw is None and _env_str("PASKAL_CHECKPOINT"):
+        ckpt_raw = Path(_env_str("PASKAL_CHECKPOINT"))
+    if ckpt_raw is None:
+        p.error("A single checkpoint is required: use --checkpoint PATH or set PASKAL_CHECKPOINT.")
+    checkpoint_path = ckpt_raw.expanduser().resolve()
+    if not checkpoint_path.is_file():
+        p.error(f"Checkpoint is not a file: {checkpoint_path}")
 
     system_prompt = DEFAULT_SYSTEM_PROMPT
     if args.system_prompt_file is not None:
@@ -220,7 +189,7 @@ def parse_args(argv: Optional[list[str]] = None) -> OfflinePaskalConfig:
     return OfflinePaskalConfig(
         tokenizer_dir=tokenizer_dir,
         system_prompt=system_prompt,
-        checkpoint_paths=tuple(checkpoint_paths_resolved),
+        checkpoint_path=checkpoint_path,
         audio_tower_config=audio_tower_config,
         audio_tower_weights=audio_tower_weights,
         dataset_jsonl=dataset_jsonl,
@@ -228,7 +197,6 @@ def parse_args(argv: Optional[list[str]] = None) -> OfflinePaskalConfig:
         semantic_standard_file=sem_std,
         semantic_model_path=sem_model,
         semantic_threshold=float(args.semantic_threshold),
-        max_jobs_per_gpu=int(args.max_jobs_per_gpu),
     )
 
 
@@ -728,38 +696,6 @@ def run_single_checkpoint(
     }
 
 
-def split_checkpoints_for_workers(checkpoint_paths, num_gpus: int, jobs_per_gpu: int):
-    total_workers = max(1, num_gpus * jobs_per_gpu)
-    worker_specs = []
-    for worker_idx in range(total_workers):
-        gpu_id = worker_idx % max(1, num_gpus)
-        worker_specs.append({"worker_idx": worker_idx, "gpu_id": gpu_id, "checkpoints": []})
-
-    for idx, ckpt_path in enumerate(checkpoint_paths):
-        worker_specs[idx % total_workers]["checkpoints"].append(ckpt_path)
-
-    return [w for w in worker_specs if w["checkpoints"]]
-
-
-def run_worker(worker_idx: int, gpu_id: int, checkpoints: list, test_data: list, cfg: OfflinePaskalConfig):
-    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-    os.environ["TOKENIZERS_PARALLELISM"] = "false"
-    if torch.cuda.is_available():
-        torch.cuda.set_device(gpu_id)
-
-    vis = (os.environ.get("CUDA_VISIBLE_DEVICES") or "").strip()
-    vis_hint = f", CUDA_VISIBLE_DEVICES={vis}" if vis else " (unmasked; gpu_id is logical index)"
-    worker_results = []
-    print(
-        f"[worker-{worker_idx}] started; logical GPU={gpu_id}{vis_hint}; "
-        f"checkpoints={len(checkpoints)}"
-    )
-    for ckpt_path in checkpoints:
-        worker_results.append(run_single_checkpoint(cfg, ckpt_path, test_data, cuda_device=gpu_id))
-    print(f"[worker-{worker_idx}] done.")
-    return worker_results
-
-
 def main(argv: Optional[list[str]] = None) -> None:
     cfg = parse_args(argv)
     os.makedirs(cfg.output_dir, exist_ok=True)
@@ -770,46 +706,20 @@ def main(argv: Optional[list[str]] = None) -> None:
         print("Dataset is empty or unreadable.")
         return
 
-    checkpoint_paths = [str(p) for p in cfg.checkpoint_paths]
+    ckpt_path = str(cfg.checkpoint_path)
 
     num_gpus = torch.cuda.device_count()
     if num_gpus <= 0:
-        print("No CUDA GPUs detected; running sequentially on CPU.")
-        summary = [
-            run_single_checkpoint(cfg, ckpt_path, test_data, cuda_device=0)
-            for ckpt_path in checkpoint_paths
-        ]
+        print("No CUDA GPUs detected; running on CPU.")
+        summary = [run_single_checkpoint(cfg, ckpt_path, test_data, cuda_device=0)]
     else:
-        print(
-            f"\nDetected {num_gpus} GPU(s); up to {cfg.max_jobs_per_gpu} concurrent task(s) per GPU; "
-            f"{len(checkpoint_paths)} checkpoint(s)."
-        )
-        worker_specs = split_checkpoints_for_workers(
-            checkpoint_paths, num_gpus=num_gpus, jobs_per_gpu=cfg.max_jobs_per_gpu
-        )
-        print(f"Worker processes: {len(worker_specs)}")
-
-        summary = []
-        ctx = mp.get_context("spawn")
-        with ProcessPoolExecutor(max_workers=len(worker_specs), mp_context=ctx) as executor:
-            futures = [
-                executor.submit(
-                    run_worker,
-                    spec["worker_idx"],
-                    spec["gpu_id"],
-                    spec["checkpoints"],
-                    test_data,
-                    cfg,
-                )
-                for spec in worker_specs
-            ]
-            for future in as_completed(futures):
-                summary.extend(future.result())
+        print(f"Detected {num_gpus} GPU(s); running single checkpoint on GPU:0.")
+        summary = [run_single_checkpoint(cfg, ckpt_path, test_data, cuda_device=0)]
 
     summary_path = os.path.join(str(cfg.output_dir), SUMMARY_JSON_NAME)
     with open(summary_path, "w", encoding="utf-8") as f:
         json.dump(summary, f, ensure_ascii=False, indent=2)
-    print(f"\nAll checkpoints finished. Summary: {summary_path}")
+    print(f"\nFinished. Summary: {summary_path}")
 
 
 if __name__ == "__main__":
