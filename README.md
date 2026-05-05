@@ -1,9 +1,12 @@
 # Mini-Omni3
+<p align="center"><strong style="font-size: 18px;">
+Mini-Omni 3: Towards Streaming Large Audio-Language Models
+</strong>
 <p align="center">
 🤗 <a href="https://huggingface.co/masaz14/mini-omini3">Hugging Face</a>  
 | 📖 <a href="https://github.com/masaz14/Mini-omni3">Github</a> 
 | 📑 <a href="">Technical report</a> |
-🤗 <a href="https://huggingface.co/datasets/masaz14/Proactive-Sound-Effect-Benchmark">Datasets</a>
+🤗 <a href="https://huggingface.co/datasets/masaz14/Proactive-Sound-Effect-Benchmark">Proactive Benchmark</a>
 </p>
 Minimal **LitGPT** codepath for **offline proactive audio reply (PASKAL)** evaluation: LitGPT decoder + Qwen2.5-Omni **audio tower**, driven by `litgpt/finetune/generate/offline_paskal.py`.
 
