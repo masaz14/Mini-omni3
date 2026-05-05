@@ -1,5 +1,10 @@
-# test_paskal_litgpt
-
+# Mini-Omni3
+<p align="center">
+🤗 <a href="https://huggingface.co/masaz14/mini-omini3">Hugging Face</a>  
+| 📖 <a href="https://github.com/masaz14/Mini-omni3">Github</a> 
+| 📑 <a href="">Technical report</a> |
+🤗 <a href="https://huggingface.co/datasets/masaz14/Proactive-Sound-Effect-Benchmark">Datasets</a>
+</p>
 Minimal **LitGPT** codepath for **offline proactive audio reply (PASKAL)** evaluation: LitGPT decoder + Qwen2.5-Omni **audio tower**, driven by `litgpt/finetune/generate/offline_paskal.py`.
 
 Python package name (editable install): **`litgpt-paskal-offline`** (see `pyproject.toml`). This folder is intentionally small (only what inference needs).
