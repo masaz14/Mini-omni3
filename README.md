@@ -7,7 +7,7 @@ Mini-Omni 3: Towards Streaming Large Audio-Language Models
 | 📖 <a href="https://github.com/masaz14/Mini-omni3">Github</a> 
 | 📑 <a href="">Technical report</a> |
 🤗 <a href="https://huggingface.co/datasets/masaz14/Proactive-Sound-Effect-Benchmark">Proactive Benchmark</a>
-| 📖<a href="https://github.com/masaz14/Proactive-Sound-Effect-Benchmark">Github</a> 
+| 📖<a href="https://github.com/masaz14/Proactive-Sound-Effect-Benchmark">Benchmark</a> 
 </p>
 
 A minimal inference-only implementation for offline proactive audio reply evaluation.
@@ -31,7 +31,7 @@ pip install -r requirements.txt
 ```
 
 ## Evaluation JSONL
-Please refer to <a href="https://github.com/masaz14/Proactive-Sound-Effect-Benchmark">Github</a>:
+Please refer to <a href="https://github.com/masaz14/Proactive-Sound-Effect-Benchmark">Benchmark</a>:
 Each line should be a JSON object with at least:
 - `path` — path to an audio file readable on disk  
 - `decision` — ground-truth label (e.g. `RESPOND` / `IGNORE`)  
@@ -39,7 +39,7 @@ Each line should be a JSON object with at least:
 
 ## Running offline evaluation
 
-Paths are **never hard-coded**: use CLI flags or `PASKAL_*` environment variables (CLI overrides env).
+Paths are never hard-coded: use CLI flags or `PASKAL_*` environment variables (CLI overrides env).
 
 | CLI flag | Environment variable | Description |
 |----------|----------------------|-------------|
@@ -62,54 +62,21 @@ Paths are **never hard-coded**: use CLI flags or `PASKAL_*` environment variable
 ```bash
 python litgpt/finetune/generate/offline_paskal.py \
   --tokenizer-dir /path/to/tokenizer_dir \
-  --checkpoint /path/to/checkpoints/step-065000/step_065000_statedict.pt \
+  --checkpoint /path/to/checkpoints \
   --audio-tower-config /path/to/qwen_omni_config_dir \
   --audio-tower-weights /path/to/audio_tower.pt \
   --dataset-jsonl /path/to/dataset.jsonl \
   --output-dir /path/to/results
 ```
-
-Multiple checkpoints:
-
-```bash
-python litgpt/finetune/generate/offline_paskal.py \
-  --tokenizer-dir /path/to/tokenizer_dir \
-  --checkpoint /path/to/a.pt \
-  --checkpoint /path/to/b.pt \
-  ...
-```
-
 Full CLI: `python litgpt/finetune/generate/offline_paskal.py --help`.
 
 ### Outputs
 
 Under `--output-dir`:
+- `results.jsonl`  
+- `stats.json`
 
-- Per checkpoint: `results.jsonl`, `stats.json`  
-- Summary: `proactive_test_results_all_checkpoints_summary.json`
-
-## Replication checklist
-
-To match published numbers, fix **dataset revision**, **exact checkpoint file(s)** used for evaluation, **tokenizer**, **audio tower weights**, **system prompt** (if custom), and **software pins** . Document CUDA/driver versions if you report GPU results.
-
-
-
-5. **Collect artifacts** on disk: tokenizer dir (`model_config.yaml` + tokenizer files), LitGPT checkpoint file path(s) (`lit_model.pth` or `*_statedict.pt`), Qwen2.5-Omni HF config dir for the audio tower, adapted audio-tower `.pt`, evaluation JSONL (`path`, `decision`, optional `id`).
-6. **Run** (CLI example — adjust paths):
-
-   ```bash
-   python litgpt/finetune/generate/offline_paskal.py \
-     --tokenizer-dir /path/to/tokenizer_dir \
-     --checkpoint /path/to/lit_model.pth \
-     --audio-tower-config /path/to/qwen_omni_config_dir \
-     --audio-tower-weights /path/to/audio_tower.pt \
-     --dataset-jsonl /path/to/dataset.jsonl \
-     --output-dir /path/to/results
-   ```
-
-   Equivalent: set `PASKAL_TOKENIZER_DIR`, `PASKAL_CHECKPOINTS` (comma-separated checkpoint files), `PASKAL_AUDIO_TOWER_CONFIG`, `PASKAL_AUDIO_TOWER_WEIGHTS`, `PASKAL_DATASET_JSONL`, `PASKAL_OUTPUT_DIR` and run the script with no path flags.
-
-7. **Optional — semantic metrics**: install `FlagEmbedding`, pass `--semantic-standard-jsonl` and `--semantic-model-dir` (see table above).
+ **Optional — semantic metrics**: install `FlagEmbedding`, pass `--semantic-standard-jsonl` and `--semantic-model-dir` (see table above).
 
 
 ## License
