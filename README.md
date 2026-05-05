@@ -7,6 +7,7 @@ Mini-Omni 3: Towards Streaming Large Audio-Language Models
 | 📖 <a href="https://github.com/masaz14/Mini-omni3">Github</a> 
 | 📑 <a href="">Technical report</a> |
 🤗 <a href="https://huggingface.co/datasets/masaz14/Proactive-Sound-Effect-Benchmark">Proactive Benchmark</a>
+| 📖<a href="https://github.com/masaz14/Proactive-Sound-Effect-Benchmark">Github</a> 
 </p>
 
 A minimal inference-only implementation for offline proactive audio reply evaluation.
@@ -14,8 +15,6 @@ This repository contains:
 - the LitGPT decoder
 - the Qwen2.5-Omni audio tower
 - the offline evaluation pipeline in `litgpt/finetune/generate/offline_paskal.py`
-
-The Python package name for editable installation is `litgpt-paskal-offline` (defined in `pyproject.toml`).
 
 The repository is intentionally lightweight and includes only the components required for inference and evaluation.
 
@@ -32,9 +31,8 @@ pip install -r requirements.txt
 ```
 
 ## Evaluation JSONL
-
+Please refer to <a href="https://github.com/masaz14/Proactive-Sound-Effect-Benchmark">Github</a>:
 Each line should be a JSON object with at least:
-
 - `path` — path to an audio file readable on disk  
 - `decision` — ground-truth label (e.g. `RESPOND` / `IGNORE`)  
 - `id` — optional but needed if you use semantic standard answers keyed by id  
@@ -94,29 +92,7 @@ Under `--output-dir`:
 
 To match published numbers, fix **dataset revision**, **exact checkpoint file(s)** used for evaluation, **tokenizer**, **audio tower weights**, **system prompt** (if custom), and **software pins** . Document CUDA/driver versions if you report GPU results.
 
-## Full workflow from zero
 
-1. **Machine**: Linux recommended; NVIDIA GPU + driver for CUDA; Python ≥ 3.10.
-2. **Enter the repo** (clone your fork or copy this directory):
-
-   ```bash
-   cd /path/to/test_paskal_litgpt
-   ```
-
-3. **Virtualenv (recommended)**:
-
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate
-   ```
-
-4. **Install PyTorch** with the CUDA build that matches your GPU ([pytorch.org](https://pytorch.org/)), then install this project:
-
-   ```bash
-   pip install -e .
-   ```
-
-   Or: `pip install -r requirements.txt` then `pip install -e .` so imports resolve.
 
 5. **Collect artifacts** on disk: tokenizer dir (`model_config.yaml` + tokenizer files), LitGPT checkpoint file path(s) (`lit_model.pth` or `*_statedict.pt`), Qwen2.5-Omni HF config dir for the audio tower, adapted audio-tower `.pt`, evaluation JSONL (`path`, `decision`, optional `id`).
 6. **Run** (CLI example — adjust paths):
