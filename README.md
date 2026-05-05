@@ -8,15 +8,16 @@ Mini-Omni 3: Towards Streaming Large Audio-Language Models
 | 📑 <a href="">Technical report</a> |
 🤗 <a href="https://huggingface.co/datasets/masaz14/Proactive-Sound-Effect-Benchmark">Proactive Benchmark</a>
 </p>
-Minimal **LitGPT** codepath for **offline proactive audio reply (PASKAL)** evaluation: LitGPT decoder + Qwen2.5-Omni **audio tower**, driven by `litgpt/finetune/generate/offline_paskal.py`.
 
-Python package name (editable install): **`litgpt-paskal-offline`** (see `pyproject.toml`). This folder is intentionally small (only what inference needs).
+A minimal inference-only implementation for offline proactive audio reply evaluation.
+This repository contains:
+- the LitGPT decoder
+- the Qwen2.5-Omni audio tower
+- the offline evaluation pipeline in `litgpt/finetune/generate/offline_paskal.py`
 
-## Requirements
+The Python package name for editable installation is `litgpt-paskal-offline` (defined in `pyproject.toml`).
 
-- **Python** ≥ 3.10  
-- **CUDA** recommended for full benchmarks (CPU is supported but very slow)  
-- **Artifacts you must supply**: tokenizer directory (`model_config.yaml` + tokenizer files), one or more LitGPT checkpoint **files** (paths you pass explicitly), Qwen2.5-Omni config directory for the audio tower, adapted audio-tower `.pt` weights, and an evaluation JSONL (see below).
+The repository is intentionally lightweight and includes only the components required for inference and evaluation.
 
 ## Install
 
@@ -29,26 +30,6 @@ conda activate Mini-omni3
 git clone https://github.com/masaz14/Mini-omni3.git
 pip install -r requirements.txt
 ```
-**Option A — editable install (recommended; installs the `litgpt` package):**
-
-```bash
-cd /path/to/test_paskal_litgpt
-pip install -e .
-```
-
-**Option B — requirements file only:**
-
-```bash
-pip install -r requirements.txt
-# Then ensure this repo root is on PYTHONPATH, or still use: pip install -e .
-```
-
-Install **PyTorch** with the CUDA build that matches your machine ([pytorch.org](https://pytorch.org/)). The pins in `requirements.txt` / `pyproject.toml` assume `torch>=2.5,<2.7`.
-
-**Optional:**
-
-- **Semantic reranking** (metrics that use `FlagEmbedding` in `offline_paskal.py`): `pip install FlagEmbedding`
-- **FlashAttention**: only if your model forward uses it — install `flash-attn` per upstream instructions.
 
 ## Evaluation JSONL
 
