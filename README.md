@@ -44,25 +44,23 @@ Paths are never hard-coded: use CLI flags or `PASKAL_*` environment variables (C
 | CLI flag | Environment variable | Description |
 |----------|----------------------|-------------|
 | `--tokenizer-dir` | `PASKAL_TOKENIZER_DIR` | Directory with `model_config.yaml` and tokenizer files |
-| `--checkpoint` | `PASKAL_CHECKPOINTS` | LitGPT checkpoint file path; repeat `--checkpoint` for multiple, or set env to comma-separated paths |
+| `--checkpoint` | `PASKAL_CHECKPOINT` | LitGPT checkpoint file path (**single file**) |
 | `--audio-tower-config` | `PASKAL_AUDIO_TOWER_CONFIG` | HF-style directory with Qwen2.5-Omni config (audio tower) |
 | `--audio-tower-weights` | `PASKAL_AUDIO_TOWER_WEIGHTS` | `.pt` state dict for the adapted audio tower |
 | `--dataset-jsonl` | `PASKAL_DATASET_JSONL` | Evaluation JSONL |
-| `--output-dir` | `PASKAL_OUTPUT_DIR` | Output root (one subdirectory per checkpoint) |
+| `--output-dir` | `PASKAL_OUTPUT_DIR` | Output root (a subdirectory will be created for this checkpoint) |
 | `--semantic-standard-jsonl` | `PASKAL_SEMANTIC_STANDARD_JSONL` | Optional JSONL with `standard_answers` per `id` |
 | `--semantic-model-dir` | `PASKAL_SEMANTIC_MODEL_DIR` | Optional local reranker model directory |
 | `--semantic-threshold` | `PASKAL_SEMANTIC_THRESHOLD` | Default `0.5` |
-| `--max-jobs-per-gpu` | `PASKAL_MAX_JOBS_PER_GPU` | Parallel checkpoint tasks per GPU (default `2`) |
 | `--system-prompt-file` | — | Optional UTF-8 text file overriding the default system prompt |
 
-**Temporary audio segments:** `PASKAL_AUDIO_BUFFER` (exact directory) or `PASKAL_AUDIO_BUFFER_ROOT` (parent; defaults to system temp). Segments are written under `litgpt_paskal_segments/<pid>/`.
 
 ### Example
 
 ```bash
 python litgpt/finetune/generate/offline_paskal.py \
   --tokenizer-dir /path/to/tokenizer_dir \
-  --checkpoint /path/to/checkpoints \
+  --checkpoint /path/to/lit_model.pth \
   --audio-tower-config /path/to/qwen_omni_config_dir \
   --audio-tower-weights /path/to/audio_tower.pt \
   --dataset-jsonl /path/to/dataset.jsonl \
